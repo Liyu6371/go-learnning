@@ -8,6 +8,7 @@ import (
 	"server/pb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type GreetServer struct {
@@ -60,13 +61,60 @@ func (s *GreetServer) LotsOfGreetingsAndReplies(stream pb.Greeter_LotsOfGreeting
 	}
 }
 
+func UnaryServerInterceptorfunc(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("failed to get metadata from context")
+	}
+	v, ok := md["AuthToken"]
+	if !ok {
+		return nil, fmt.Errorf("AuthToken not provided in metadata")
+	}
+	if len(v) == 0 {
+		return nil, fmt.Errorf("AuthToken is empty")
+	}
+	if v[0] != "TestAuthToken" {
+		return nil, fmt.Errorf("invalid AuthToken: %s", v[0])
+	}
+	m, err := handler(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	md, ok := metadata.FromIncomingContext(ss.Context())
+	if !ok {
+		return fmt.Errorf("failed to get metadata from context")
+	}
+	v, ok := md["AuthToken"]
+	if !ok {
+		return fmt.Errorf("AuthToken not provided in metadata")
+	}
+	if len(v) == 0 {
+		return fmt.Errorf("AuthToken is empty")
+	}
+	if v[0] != "TestAuthToken" {
+		return fmt.Errorf("invalid AuthToken: %s", v[0])
+	}
+	err := handler(srv, ss)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	listen, err := net.Listen("tcp", ":8972")
 	if err != nil {
 		fmt.Printf("new listen error: %s\n", err)
 		return
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(UnaryServerInterceptorfunc),
+		grpc.StreamInterceptor(StreamServerInterceptor),
+	)
 	pb.RegisterGreeterServer(server, &GreetServer{})
 	err = server.Serve(listen)
 	if err != nil {

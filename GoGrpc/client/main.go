@@ -5,33 +5,28 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
-func main() {
-	conn, err := grpc.NewClient(
-		"localhost:8972",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		fmt.Printf("new grpc client error: %s\n", err)
-		return
-	}
-	defer conn.Close()
-	client := pb.NewGreeterClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-	// 单一调用
-	fmt.Println("---- 单一调用 ----")
+func ProcessMd(ctx context.Context) context.Context {
+	subCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("AuthToken", "TestAuthToken"))
+	return subCtx
+}
+
+func RunSayHello(ctx context.Context, client pb.GreeterClient) {
+	// fmt.Println("---- 单一调用 ----")
 	r, err := client.SayHello(ctx, &pb.HelloRequest{Name: "World"})
 	if err != nil {
 		fmt.Printf("call SayHello error: %s\n", err)
 		return
 	}
 	fmt.Printf("response from server: %s\n", r.GetReply())
+}
+
+func RunLotsOfReplies(ctx context.Context, client pb.GreeterClient) {
 	fmt.Println("---- 服务端流式传输 ----")
 	// 服务端流式传输
 	replyStream, err := client.LotsOfReplies(ctx, &pb.HelloRequest{Name: "World"})
@@ -50,6 +45,9 @@ func main() {
 		}
 		fmt.Printf("response from server: %s\n", reply.GetReply())
 	}
+}
+
+func RunLotsOfGreetings(ctx context.Context, client pb.GreeterClient) {
 	fmt.Println("---- 客户端流式传输 ----")
 	// 客户端流式传输
 	reqStream, err := client.LotsOfGreetings(ctx)
@@ -70,6 +68,10 @@ func main() {
 		return
 	}
 	fmt.Printf("response from server: %s\n", resp.GetReply())
+}
+
+func RunLotsOfGreetingsAndReplies(ctx context.Context, client pb.GreeterClient) {
+	names := []string{"Alice", "Bob", "Charlie", "David", "Eve"}
 	fmt.Println("---- 双向流式传输 ----")
 	reqStream2, err := client.LotsOfGreetingsAndReplies(ctx)
 	if err != nil {
@@ -100,4 +102,22 @@ func main() {
 	}
 	reqStream2.CloseSend()
 	<-waitC
+}
+
+func main() {
+	conn, err := grpc.NewClient(
+		"localhost:8972",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		fmt.Printf("new grpc client error: %s\n", err)
+		return
+	}
+	defer conn.Close()
+	ctx := ProcessMd(context.Background())
+	client := pb.NewGreeterClient(conn)
+	RunSayHello(ctx, client)
+	RunLotsOfReplies(ctx, client)
+	RunLotsOfGreetings(ctx, client)
+	RunLotsOfGreetingsAndReplies(ctx, client)
 }
