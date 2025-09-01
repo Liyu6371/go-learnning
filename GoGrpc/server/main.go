@@ -66,15 +66,15 @@ func UnaryServerInterceptorfunc(ctx context.Context, req interface{}, info *grpc
 	if !ok {
 		return nil, fmt.Errorf("failed to get metadata from context")
 	}
-	v, ok := md["AuthToken"]
+	v, ok := md["auto_token"]
 	if !ok {
-		return nil, fmt.Errorf("AuthToken not provided in metadata")
+		return nil, fmt.Errorf("auto_token not provided in metadata")
 	}
 	if len(v) == 0 {
-		return nil, fmt.Errorf("AuthToken is empty")
+		return nil, fmt.Errorf("auto_token is empty")
 	}
-	if v[0] != "TestAuthToken" {
-		return nil, fmt.Errorf("invalid AuthToken: %s", v[0])
+	if v[0] != "test_auto_token" {
+		return nil, fmt.Errorf("invalid auto_token: %s", v[0])
 	}
 	m, err := handler(ctx, req)
 	if err != nil {
@@ -88,15 +88,15 @@ func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.S
 	if !ok {
 		return fmt.Errorf("failed to get metadata from context")
 	}
-	v, ok := md["AuthToken"]
+	v, ok := md["auto_token"]
 	if !ok {
-		return fmt.Errorf("AuthToken not provided in metadata")
+		return fmt.Errorf("auto_token not provided in metadata")
 	}
 	if len(v) == 0 {
-		return fmt.Errorf("AuthToken is empty")
+		return fmt.Errorf("auto_token is empty")
 	}
-	if v[0] != "TestAuthToken" {
-		return fmt.Errorf("invalid AuthToken: %s", v[0])
+	if v[0] != "test_auto_token" {
+		return fmt.Errorf("invalid auto_token: %s", v[0])
 	}
 	err := handler(srv, ss)
 	if err != nil {

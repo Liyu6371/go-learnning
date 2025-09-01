@@ -12,7 +12,7 @@ import (
 )
 
 func ProcessMd(ctx context.Context) context.Context {
-	subCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("AuthToken", "TestAuthToken"))
+	subCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("auto_token", "test_auto_token"))
 	return subCtx
 }
 
