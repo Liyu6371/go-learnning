@@ -1,6 +1,7 @@
 package main
 
 import (
+	"client/middleware"
 	"client/pb"
 	"context"
 	"fmt"
@@ -108,6 +109,8 @@ func main() {
 	conn, err := grpc.NewClient(
 		"localhost:8972",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(middleware.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(middleware.StreamClientInterceptor),
 	)
 	if err != nil {
 		fmt.Printf("new grpc client error: %s\n", err)

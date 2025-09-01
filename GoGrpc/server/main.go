@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"server/middleware"
 	"server/pb"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 type GreetServer struct {
@@ -61,50 +61,6 @@ func (s *GreetServer) LotsOfGreetingsAndReplies(stream pb.Greeter_LotsOfGreeting
 	}
 }
 
-func UnaryServerInterceptorfunc(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, fmt.Errorf("failed to get metadata from context")
-	}
-	v, ok := md["auto_token"]
-	if !ok {
-		return nil, fmt.Errorf("auto_token not provided in metadata")
-	}
-	if len(v) == 0 {
-		return nil, fmt.Errorf("auto_token is empty")
-	}
-	if v[0] != "test_auto_token" {
-		return nil, fmt.Errorf("invalid auto_token: %s", v[0])
-	}
-	m, err := handler(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	md, ok := metadata.FromIncomingContext(ss.Context())
-	if !ok {
-		return fmt.Errorf("failed to get metadata from context")
-	}
-	v, ok := md["auto_token"]
-	if !ok {
-		return fmt.Errorf("auto_token not provided in metadata")
-	}
-	if len(v) == 0 {
-		return fmt.Errorf("auto_token is empty")
-	}
-	if v[0] != "test_auto_token" {
-		return fmt.Errorf("invalid auto_token: %s", v[0])
-	}
-	err := handler(srv, ss)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func main() {
 	listen, err := net.Listen("tcp", ":8972")
 	if err != nil {
@@ -112,8 +68,8 @@ func main() {
 		return
 	}
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(UnaryServerInterceptorfunc),
-		grpc.StreamInterceptor(StreamServerInterceptor),
+		grpc.UnaryInterceptor(middleware.UnaryServerInterceptorfunc),
+		grpc.StreamInterceptor(middleware.StreamServerInterceptor),
 	)
 	pb.RegisterGreeterServer(server, &GreetServer{})
 	err = server.Serve(listen)
