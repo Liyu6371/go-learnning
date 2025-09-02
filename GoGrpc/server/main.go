@@ -3,78 +3,55 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"net"
-	"server/middleware"
-	"server/pb"
-
-	"google.golang.org/grpc"
+	"os"
+	"os/signal"
+	"server/grpcserver"
+	"sync"
+	"syscall"
 )
 
-type GreetServer struct {
-	pb.UnimplementedGreeterServer
-}
-
-func (s *GreetServer) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloResponse, error) {
-	return &pb.HelloResponse{Reply: "Hello " + in.Name}, nil
-}
-
-func (s *GreetServer) LotsOfReplies(in *pb.HelloRequest, stream pb.Greeter_LotsOfRepliesServer) error {
-	replays := []string{"AA", "BB", "CC"}
-	for _, r := range replays {
-		replay := "Hello_" + in.GetName() + "_" + r
-		if err := stream.Send(&pb.HelloResponse{Reply: replay}); err != nil {
-			fmt.Printf("stream Send replay: %s error: %s\n", replay, err)
-			continue
-		}
+func RaiseNumOfGrpcServer(ctx context.Context, num int, addr []string, port []int) {
+	fmt.Println("Raising gRPC servers...")
+	if len(addr) != num || len(port) != num {
+		fmt.Println("Invalid input: addr and port slices must have the same length as num")
+		return
 	}
-	return nil
-}
+	wg := sync.WaitGroup{}
+	for i := 0; i < num; i++ {
+		serverAddr := addr[i]
+		serverPort := port[i]
+		serverName := fmt.Sprintf("grpc_server_%d", i+1)
 
-func (s *GreetServer) LotsOfGreetings(stream pb.Greeter_LotsOfGreetingsServer) error {
-	replay := "Hello"
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return stream.SendAndClose(&pb.HelloResponse{Reply: replay})
+		grpcServerInst := grpcserver.NewGrpcGreeterServer(serverName, serverAddr, serverPort)
+		if grpcServerInst == nil {
+			fmt.Printf("Failed to create gRPC server instance for %s\n", serverName)
+			return
 		}
-		if err != nil {
-			fmt.Printf("stream Recv error: %s\n", err)
-			return err
-		}
-		replay += "_" + req.GetName()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			grpcServerInst.Run(ctx)
+		}()
 	}
-}
-func (s *GreetServer) LotsOfGreetingsAndReplies(stream pb.Greeter_LotsOfGreetingsAndRepliesServer) error {
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("stream.Recv error: %v", err)
-		}
-		reply := "Hello_" + in.GetName() + "_By_GreetServer"
-		if err := stream.Send(&pb.HelloResponse{Reply: reply}); err != nil {
-			return fmt.Errorf("stream.Send error: %v", err)
-		}
-	}
+	wg.Wait()
+	fmt.Println("All gRPC servers have been shut down.")
 }
 
 func main() {
-	listen, err := net.Listen("tcp", ":8972")
-	if err != nil {
-		fmt.Printf("new listen error: %s\n", err)
-		return
-	}
-	server := grpc.NewServer(
-		grpc.UnaryInterceptor(middleware.UnaryServerInterceptorfunc),
-		grpc.StreamInterceptor(middleware.StreamServerInterceptor),
-	)
-	pb.RegisterGreeterServer(server, &GreetServer{})
-	err = server.Serve(listen)
-	if err != nil {
-		fmt.Printf("server error: %s\n", err)
-		return
-	}
+	addr := []string{"127.0.0.1", "127.0.0.1"}
+	port := []int{50051, 50052}
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		RaiseNumOfGrpcServer(ctx, 2, addr, port)
+	}()
+	<-signalCh
+	cancel()
+	wg.Wait()
 }
