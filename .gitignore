@@ -1,0 +1,4 @@
+Docker/consul/data/server1/*
+Docker/consul/data/server2/*
+Docker/consul/data/server3/*
+Docker/consul/data/client1/*

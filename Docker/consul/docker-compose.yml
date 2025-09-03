@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+  consul_service_one:
+    image: hashicorp/consul:1.21
+    container_name: consul_container_one
+    command: agent -server -ui -bootstrap-expect=3 -client=0.0.0.0 -retry-join=consul_container_two -retry-join=consul_container_three
+    volumes:
+      - ./data/server1:/consul/data
+    ports:
+      - "8500:8500"
+    networks:
+      - local-bridge
+
+  consul_service_two:
+    image: hashicorp/consul:1.21
+    container_name: consul_container_two
+    command: agent -server -client=0.0.0.0 -retry-join=consul_container_one -retry-join=consul_container_three
+    volumes:
+      - ./data/server2:/consul/data
+    networks:
+      - local-bridge
+
+  consul_service_three:
+    image: hashicorp/consul:1.21
+    container_name: consul_container_three
+    command: agent -server -client=0.0.0.0 -retry-join=consul_container_one -retry-join=consul_container_two
+    volumes:
+      - ./data/server3:/consul/data
+    networks:
+      - local-bridge
+
+  consul_client_one:
+    image: hashicorp/consul:1.21
+    container_name: consul_client_one
+    command: agent -ui -client=0.0.0.0 -retry-join=consul_container_one -retry-join=consul_container_two -retry-join=consul_container_three
+    volumes:
+      - ./data/client1:/consul/data
+    ports:
+      - "8501:8500"   # 可选，暴露 client 的 API/UI 端口
+    networks:
+      - local-bridge
+
+networks:
+  local-bridge:
+    external: true
