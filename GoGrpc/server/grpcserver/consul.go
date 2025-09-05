@@ -31,13 +31,30 @@ func NewConsulServer(c *config.ConsulConfig) (*ConsulServer, error) {
 	return &ConsulServer{cfg: c, client: client}, nil
 }
 
-func (cs *ConsulServer) RegisterService(serviceName, ip string, port int, tags []string) error {
+func (cs *ConsulServer) RegisterService(cfg *config.GrpcServerConfig, tags []string, check bool) error {
 	registration := &api.AgentServiceRegistration{
-		ID:      fmt.Sprintf("%s-%s-%d", serviceName, ip, port),
-		Name:    serviceName,
+		ID:      fmt.Sprintf("%s_%s_%d", cfg.Name, cfg.Addr, cfg.Port),
+		Name:    cfg.ServerName,
 		Tags:    tags,
-		Address: ip,
-		Port:    port,
+		Address: cfg.Addr,
+		Port:    cfg.Port,
+	}
+
+	if !check {
+		fmt.Println("regist witchout check...")
+		err := cs.client.Agent().ServiceRegister(registration)
+		if err != nil {
+			return fmt.Errorf("failed to register service to consul: %s\n", err)
+		}
+		return nil
+	}
+
+	fmt.Println("regist witch check...")
+	registration.Check = &api.AgentServiceCheck{
+		GRPC:                           fmt.Sprintf("%s:%d", cfg.Addr, cfg.Port),
+		Timeout:                        "3s",
+		Interval:                       "10s",
+		DeregisterCriticalServiceAfter: "600s",
 	}
 	if err := cs.client.Agent().ServiceRegister(registration); err != nil {
 		return fmt.Errorf("failed to register service to consul: %s\n", err)
@@ -45,9 +62,8 @@ func (cs *ConsulServer) RegisterService(serviceName, ip string, port int, tags [
 	return nil
 }
 
-func (cs *ConsulServer) DeregisterService(serviceName, ip string, port int) error {
-	serviceID := fmt.Sprintf("%s-%s-%d", serviceName, ip, port)
-	if err := cs.client.Agent().ServiceDeregister(serviceID); err != nil {
+func (cs *ConsulServer) DeregisterService(cfg *config.GrpcServerConfig) error {
+	if err := cs.client.Agent().ServiceDeregister(fmt.Sprintf("%s_%s_%d", cfg.Name, cfg.Addr, cfg.Port)); err != nil {
 		return fmt.Errorf("failed to deregister service from consul: %s\n", err)
 	}
 	return nil

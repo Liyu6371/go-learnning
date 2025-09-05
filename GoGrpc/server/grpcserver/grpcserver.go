@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type GrpcGreeterServer struct {
@@ -29,10 +31,14 @@ func (s *GrpcGreeterServer) Run(ctx context.Context, cs *ConsulServer) {
 		return
 	}
 	defer listen.Close()
+
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.UnaryServerInterceptorfunc),
 		grpc.StreamInterceptor(middleware.StreamServerInterceptor),
 	)
+	hc := health.NewServer()
+	healthpb.RegisterHealthServer(server, hc)
+	hc.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	pb.RegisterGreeterServer(server, s)
 	go func() {
 		if err := server.Serve(listen); err != nil {
@@ -48,13 +54,13 @@ func (s *GrpcGreeterServer) Run(ctx context.Context, cs *ConsulServer) {
 		return
 	}
 	// Register service to Consul
-	err = cs.RegisterService(s.cfg.Name, s.cfg.Addr, s.cfg.Port, []string{"grpc_greeter"})
+	err = cs.RegisterService(s.cfg, []string{"grpc_greeter"}, true)
 	if err != nil {
 		fmt.Printf("failed to register service to consul: %s\n", err)
 		return
 	}
 	defer func() {
-		if err := cs.DeregisterService(s.cfg.Name, s.cfg.Addr, s.cfg.Port); err != nil {
+		if err := cs.DeregisterService(s.cfg); err != nil {
 			fmt.Printf("failed to deregister service from consul: %s\n", err)
 			return
 		}

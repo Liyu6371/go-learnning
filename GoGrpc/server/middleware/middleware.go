@@ -10,6 +10,10 @@ import (
 
 // StreamServerInterceptor is a gRPC server stream interceptor for validating metadata.
 func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	// Skip health check method
+	if info.FullMethod == "/grpc.health.v1.Health/Check" {
+		return handler(srv, ss)
+	}
 	md, ok := metadata.FromIncomingContext(ss.Context())
 	if !ok {
 		return fmt.Errorf("failed to get metadata from context")
@@ -33,6 +37,10 @@ func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.S
 
 // UnaryServerInterceptorfunc is a gRPC server unary interceptor for validating metadata.
 func UnaryServerInterceptorfunc(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// Skip health check method
+	if info.FullMethod == "/grpc.health.v1.Health/Check" {
+		return handler(ctx, req)
+	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("failed to get metadata from context")

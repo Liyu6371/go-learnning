@@ -11,9 +11,10 @@ type Config struct {
 }
 
 type GrpcServerConfig struct {
-	Name string
-	Addr string
-	Port int
+	ServerName string
+	Name       string
+	Addr       string
+	Port       int
 }
 
 type ConsulConfig struct {
@@ -27,17 +28,20 @@ func DefaultConfig() *Config {
 		fmt.Printf("Failed to get outbound IP: %s\n", err)
 		return nil
 	}
+	fmt.Println("Outbound IP:", outboundIP)
 	return &Config{
 		GrpcServers: []GrpcServerConfig{
 			{
-				Name: "grpc_server_1",
-				Addr: outboundIP,
-				Port: 50051,
+				ServerName: "grpcServer",
+				Name:       "grpcServer1",
+				Addr:       outboundIP,
+				Port:       50051,
 			},
 			{
-				Name: "grpc_server_2",
-				Addr: outboundIP,
-				Port: 50052,
+				ServerName: "grpcServer",
+				Name:       "grpcServer2",
+				Addr:       outboundIP,
+				Port:       50052,
 			},
 		},
 		Consul: ConsulConfig{
