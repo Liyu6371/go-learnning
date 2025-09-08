@@ -3,10 +3,11 @@ package main
 import (
 	"client/middleware"
 	"client/pb"
-	_ "client/resolver"
 	"context"
 	"fmt"
 	"io"
+
+	_ "github.com/mbobakov/grpc-consul-resolver"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -107,14 +108,8 @@ func RunLotsOfGreetingsAndReplies(ctx context.Context, client pb.GreeterClient) 
 }
 
 func main() {
-	// conn, err := grpc.NewClient(
-	// 	"localhost:8972",
-	// 	grpc.WithTransportCredentials(insecure.NewCredentials()),
-	// 	grpc.WithUnaryInterceptor(middleware.UnaryClientInterceptor),
-	// 	grpc.WithStreamInterceptor(middleware.StreamClientInterceptor),
-	// )
 	conn, err := grpc.NewClient(
-		"mygrpc:///localgrpc.service.com",
+		"consul://127.0.0.1:8500/grpcServer?health=true",
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(middleware.UnaryClientInterceptor),
