@@ -1,0 +1,28 @@
+syntax = "proto3";
+package pb;
+option go_package = "addService/pb";
+
+message SumRequest {
+    int64 a = 1;
+    int64 b = 2;
+}
+
+message SumResponse {
+    int64 result = 1;
+    string err = 2;
+}
+
+message ConcatRequest {
+    string s1 = 1;
+    string s2 = 2;
+}
+
+message ConcatResponse {
+    string result = 1;
+    string err = 2;
+}
+
+service AddService {
+    rpc Sum(SumRequest)returns (SumResponse);
+    rpc Concat(ConcatRequest)returns (ConcatResponse);
+}
